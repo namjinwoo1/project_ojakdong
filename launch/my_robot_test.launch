@@ -1,0 +1,21 @@
+<launch>
+  <!-- 로봇 설명 파라미터 설정 -->
+  <param name="robot_description" command="$(find xacro)/xacro '$(find project_ojakdong)/urdf/my_robot.xacro'" />
+
+  <!-- Gazebo 시뮬레이터 실행 -->
+  <include file="$(find gazebo_ros)/launch/empty_world.launch">
+    <arg name="paused" value="false"/>
+    <arg name="use_sim_time" value="true"/>
+    <arg name="gui" value="true"/>
+  </include>
+
+    <node name="robot_state_publisher" pkg="robot_state_publisher" type="robot_state_publisher" respawn="false" output="screen">
+    <param name="robot_description" command="$(find xacro)/xacro '$(find project_ojakdong)/urdf/my_robot.xacro'" />
+    </node>
+
+
+  <!-- Gazebo에 로봇 스폰 -->
+  <node name="spawn_urdf" pkg="gazebo_ros" type="spawn_model" respawn="false" output="screen"
+        args="-param robot_description
+              -model my_robot" />
+</launch>

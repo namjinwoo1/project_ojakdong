@@ -1,0 +1,20 @@
+<?xml version="1.0"?>
+<package format="2">
+  <name>project_ojakdong</name>
+  <version>0.0.1</version>
+  <description>DNN 기반 얼굴 추적 프로젝트</description>
+  <maintainer email="user@example.com">Your Name</maintainer>
+  <license>MIT</license>
+
+  <!-- ROS 의존성 -->
+  <buildtool_depend>catkin</buildtool_depend>
+  <depend>gazebo_ros</depend>
+  <depend>robot_state_publisher</depend>
+  <depend>roscpp</depend>
+  <depend>std_msgs</depend>
+
+  <!-- OpenCV 의존성 -->
+  <build_depend>opencv</build_depend>
+  <exec_depend>opencv</exec_depend>
+</package>
+

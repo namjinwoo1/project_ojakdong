@@ -1,0 +1,39 @@
+<?xml version="1.0"?>
+<robot xmlns:xacro="http://www.ros.org/wiki/xacro">
+  <xacro:include filename="common.xacro" />
+  <xacro:include filename="base_and_wheels.xacro" />
+  <xacro:include filename="upper_frame_and_sensors.xacro" />
+
+  <!-- Gazebo Plugins -->
+  <gazebo>
+    <plugin name="diff_drive_controller" filename="libgazebo_ros_diff_drive.so">
+      <robotNamespace>/</robotNamespace>
+      <commandTopic>/cmd_vel</commandTopic>
+      <odometryTopic>/odom</odometryTopic>
+      <robotBaseFrame>base_frame</robotBaseFrame>
+      <leftJoint>wheel_front_left_joint</leftJoint>
+      <leftJoint>wheel_back_left_joint</leftJoint>
+      <rightJoint>wheel_front_right_joint</rightJoint>
+      <rightJoint>wheel_back_right_joint</rightJoint>
+      <wheelSeparation>${wheel_separation}</wheelSeparation>
+      <wheelDiameter>${2 * wheel_radius}</wheelDiameter>
+      <updateRate>100</updateRate>
+    </plugin>
+    <plugin name="imu_plugin" filename="libgazebo_ros_imu.so">
+      <robotNamespace>/</robotNamespace>
+      <topicName>/imu/data</topicName>
+      <frameName>base_frame</frameName>
+      <updateRate>50.0</updateRate>
+    </plugin>
+    <plugin name="rplidar_plugin" filename="libgazebo_ros_laser.so">
+      <robotNamespace>/</robotNamespace>
+      <topicName>/scan</topicName>
+      <frameName>rplidar_sensor</frameName>
+      <updateRate>10.0</updateRate>
+      <horizontalSamples>360</horizontalSamples>
+      <horizontalResolution>1.0</horizontalResolution>
+      <minRange>0.1</minRange>
+      <maxRange>12.0</maxRange>
+    </plugin>
+  </gazebo>
+</robot>

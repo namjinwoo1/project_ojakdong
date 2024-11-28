@@ -1,0 +1,195 @@
+<?xml version="1.0"?>
+<robot xmlns:xacro="http://www.ros.org/wiki/xacro" name="my_robot">
+
+  <!-- Physical Constants -->
+  <xacro:property name="wheel_radius" value="0.09" />
+  <xacro:property name="wheel_width" value="0.06" />
+  <xacro:property name="wheel_separation" value="0.36" />
+  <xacro:property name="base_length" value="0.45" />
+  <xacro:property name="base_width" value="0.30" />
+  <xacro:property name="base_height" value="0.10" />
+  <xacro:property name="pillar_radius" value="0.01" />
+  <xacro:property name="pillar_height" value="0.13" />
+  <xacro:property name="lidar_length" value="0.096" />
+  <xacro:property name="lidar_width" value="0.070" />
+  <xacro:property name="lidar_height" value="0.055" />
+  <xacro:property name="floor2_thickness" value="0.01" />
+  <xacro:property name="floor2_length" value="0.30" />
+  <xacro:property name="floor2_width" value="0.20" />
+
+  <!-- 색깔 정의 -->
+  <material name="black">
+    <color rgba="0.0 0.0 0.0 1.0"/>
+  </material>
+  <material name="red">
+    <color rgba="0.8 0.0 0.0 1.0"/>
+  </material>
+  <material name="white">
+    <color rgba="1.0 1.0 1.0 1.0"/>
+  </material>
+  <material name="gray">
+    <color rgba="0.5 0.5 0.5 1.0"/>
+  </material>
+  <material name="blue">
+    <color rgba="0.0 0.0 0.8 1.0"/>
+  </material>
+
+  <!-- Base Frame -->
+  <link name="base_frame">
+    <inertial>
+      <mass value="10.0"/>
+      <origin xyz="0 0 ${base_height/2}" />
+      <inertia ixx="0.1" ixy="0.0" ixz="0.0" iyy="0.1" iyz="0.0" izz="0.1" />
+    </inertial>
+    <visual>
+      <geometry>
+        <box size="${base_length} ${base_width} ${base_height}" />
+      </geometry>
+      <material name="gray"/>
+    </visual>
+    <collision>
+      <geometry>
+        <box size="${base_length} ${base_width} ${base_height}" />
+      </geometry>
+    </collision>
+  </link>
+
+  <!-- Wheels -->
+  <xacro:macro name="wheel" params="name x y">
+    <link name="${name}">
+      <visual>
+        <geometry>
+          <cylinder radius="${wheel_radius}" length="${wheel_width}" />
+        </geometry>
+        <material name="black"/>
+      </visual>
+      <collision>
+        <geometry>
+          <cylinder radius="${wheel_radius}" length="${wheel_width}" />
+        </geometry>
+      </collision>
+      <inertial>
+        <mass value="1.0"/>
+        <origin xyz="0 0 0" />
+        <inertia ixx="0.001" ixy="0.0" ixz="0.0" iyy="0.001" iyz="0.0" izz="0.001" />
+      </inertial>
+    </link>
+    <joint name="${name}_joint" type="continuous">
+      <parent link="base_frame"/>
+      <child link="${name}"/>
+      <origin xyz="${x} ${y} ${wheel_radius}" rpy="0 0 0" />
+      <axis xyz="0 1 0" />
+    </joint>
+  </xacro:macro>
+
+  <xacro:wheel name="wheel_front_left" x="${base_length/2}" y="${wheel_separation/2}" />
+  <xacro:wheel name="wheel_front_right" x="${base_length/2}" y="-${wheel_separation/2}" />
+  <xacro:wheel name="wheel_back_left" x="-${base_length/2}" y="${wheel_separation/2}" />
+  <xacro:wheel name="wheel_back_right" x="-${base_length/2}" y="-${wheel_separation/2}" />
+
+  <!-- Floor 2 -->
+  <link name="frame_2nd_floor">
+    <inertial>
+      <mass value="2.0" />
+      <origin xyz="0 0 ${pillar_height + floor2_thickness/2}" />
+      <inertia ixx="0.005" ixy="0.0" ixz="0.0" iyy="0.005" iyz="0.0" izz="0.005" />
+    </inertial>
+    <visual>
+      <geometry>
+        <box size="${floor2_length} ${floor2_width} ${floor2_thickness}" />
+      </geometry>
+      <material name="blue"/>
+    </visual>
+    <collision>
+      <geometry>
+        <box size="${floor2_length} ${floor2_width} ${floor2_thickness}" />
+      </geometry>
+    </collision>
+  </link>
+
+  <!-- Pillars -->
+  <xacro:macro name="pillar" params="name x y">
+    <link name="${name}">
+      <visual>
+        <geometry>
+          <cylinder radius="${pillar_radius}" length="${pillar_height}" />
+        </geometry>
+        <material name="gray"/>
+      </visual>
+      <collision>
+        <geometry>
+          <cylinder radius="${pillar_radius}" length="${pillar_height}" />
+        </geometry>
+      </collision>
+    </link>
+    <joint name="${name}_joint" type="fixed">
+      <parent link="base_frame"/>
+      <child link="${name}"/>
+      <origin xyz="${x} ${y} ${base_height}" rpy="0 0 0" />
+    </joint>
+  </xacro:macro>
+
+  <xacro:pillar name="pillar_1" x="${floor2_length/2}" y="${floor2_width/2}" />
+  <xacro:pillar name="pillar_2" x="${floor2_length/2}" y="-${floor2_width/2}" />
+  <xacro:pillar name="pillar_3" x="-${floor2_length/2}" y="${floor2_width/2}" />
+  <xacro:pillar name="pillar_4" x="-${floor2_length/2}" y="-${floor2_width/2}" />
+
+  <!-- LiDAR -->
+  <link name="rplidar_sensor">
+    <visual>
+      <geometry>
+        <box size="${lidar_length} ${lidar_width} ${lidar_height}" />
+      </geometry>
+      <material name="red"/>
+    </visual>
+    <collision>
+      <geometry>
+        <box size="${lidar_length} ${lidar_width} ${lidar_height}" />
+      </geometry>
+    </collision>
+    <inertial>
+      <mass value="0.5"/>
+      <origin xyz="0 0 ${lidar_height/2}" />
+      <inertia ixx="0.001" ixy="0.0" ixz="0.0" iyy="0.001" iyz="0.0" izz="0.001" />
+    </inertial>
+  </link>
+  <joint name="rplidar_joint" type="fixed">
+    <parent link="frame_2nd_floor"/>
+    <child link="rplidar_sensor"/>
+    <origin xyz="0 0 ${pillar_height + lidar_height/2}" rpy="0 0 0" />
+  </joint>
+
+  <!-- Plugins -->
+  <gazebo>
+    <plugin name="diff_drive_controller" filename="libgazebo_ros_diff_drive.so">
+      <robotNamespace>/</robotNamespace>
+      <commandTopic>/cmd_vel</commandTopic>
+      <odometryTopic>/odom</odometryTopic>
+      <robotBaseFrame>base_frame</robotBaseFrame>
+      <leftJoint>wheel_front_left_joint</leftJoint>
+      <leftJoint>wheel_back_left_joint</leftJoint>
+      <rightJoint>wheel_front_right_joint</rightJoint>
+      <rightJoint>wheel_back_right_joint</rightJoint>
+      <wheelSeparation>${wheel_separation}</wheelSeparation>
+      <wheelDiameter>${2 * wheel_radius}</wheelDiameter>
+      <updateRate>100</updateRate>
+    </plugin>
+    <plugin name="imu_plugin" filename="libgazebo_ros_imu.so">
+      <robotNamespace>/</robotNamespace>
+      <topicName>/imu/data</topicName>
+      <frameName>base_frame</frameName>
+      <updateRate>50.0</updateRate>
+    </plugin>
+    <plugin name="rplidar_plugin" filename="libgazebo_ros_laser.so">
+      <robotNamespace>/</robotNamespace>
+      <topicName>/scan</topicName>
+      <frameName>rplidar_sensor</frameName>
+      <updateRate>10.0</updateRate>
+      <horizontalSamples>360</horizontalSamples>
+      <horizontalResolution>1.0</horizontalResolution>
+      <minRange>0.1</minRange>
+      <maxRange>12.0</maxRange>
+    </plugin>
+  </gazebo>
+
+</robot>

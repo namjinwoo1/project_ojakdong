@@ -1,0 +1,60 @@
+<?xml version="1.0"?>
+<robot xmlns:xacro="http://www.ros.org/wiki/xacro">
+  <xacro:include filename="common.xacro" />
+
+  <!-- Floor 2 -->
+  <link name="frame_2nd_floor">
+    <inertial>
+      <mass value="2.0" />
+      <origin xyz="0 0 ${pillar_height + floor2_thickness/2}" />
+      <inertia ixx="0.005" ixy="0.0" ixz="0.0" iyy="0.005" iyz="0.0" izz="0.005" />
+    </inertial>
+    <visual>
+      <geometry>
+        <box size="${floor2_length} ${floor2_width} ${floor2_thickness}" />
+      </geometry>
+      <material name="blue"/>
+    </visual>
+    <collision>
+      <geometry>
+        <box size="${floor2_length} ${floor2_width} ${floor2_thickness}" />
+      </geometry>
+    </collision>
+  </link>
+  <joint name="frame_2nd_floor_joint" type="fixed">
+    <parent link="base_frame"/>
+    <child link="frame_2nd_floor"/>
+    <origin xyz="0 0 ${pillar_height + floor2_thickness/2}" rpy="0 0 0" />
+  </joint>
+
+  <!-- Pillars -->
+  <xacro:pillar name="pillar_1" x="${floor2_length/2}" y="${floor2_width/2}" />
+  <xacro:pillar name="pillar_2" x="${floor2_length/2}" y="-${floor2_width/2}" />
+  <xacro:pillar name="pillar_3" x="-${floor2_length/2}" y="${floor2_width/2}" />
+  <xacro:pillar name="pillar_4" x="-${floor2_length/2}" y="-${floor2_width/2}" />
+
+  <!-- LiDAR -->
+  <link name="rplidar_sensor">
+    <visual>
+      <geometry>
+        <box size="${lidar_length} ${lidar_width} ${lidar_height}" />
+      </geometry>
+      <material name="red"/>
+    </visual>
+    <collision>
+      <geometry>
+        <box size="${lidar_length} ${lidar_width} ${lidar_height}" />
+      </geometry>
+    </collision>
+    <inertial>
+      <mass value="0.5"/>
+      <origin xyz="0 0 ${lidar_height/2}" />
+      <inertia ixx="0.001" ixy="0.0" ixz="0.0" iyy="0.001" iyz="0.0" izz="0.001" />
+    </inertial>
+  </link>
+  <joint name="rplidar_joint" type="fixed">
+    <parent link="frame_2nd_floor"/>
+    <child link="rplidar_sensor"/>
+    <origin xyz="0 0 ${pillar_height + lidar_height/2}" rpy="0 0 0" />
+  </joint>
+</robot>
