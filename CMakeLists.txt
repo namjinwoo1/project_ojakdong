@@ -12,11 +12,12 @@ find_package(catkin REQUIRED COMPONENTS
 )
 
 find_package(OpenCV REQUIRED)
+find_package(Qt5 REQUIRED COMPONENTS Widgets)
 
+## Qt 설정
 set(CMAKE_AUTOMOC ON) # MOC 처리 자동화
 set(CMAKE_AUTORCC ON) # Qt 리소스 자동화 (선택)
 set(CMAKE_AUTOUIC ON) # UI 파일 자동화 (선택)
-find_package(Qt5 REQUIRED COMPONENTS Widgets)
 
 ## Catkin 패키지 설정
 catkin_package()
@@ -26,22 +27,26 @@ include_directories(
   ${catkin_INCLUDE_DIRS}
   ${OpenCV_INCLUDE_DIRS}
   ${Qt5Widgets_INCLUDE_DIRS}
+  ${CMAKE_CURRENT_SOURCE_DIR}/src # 헤더 파일이 src 폴더에 위치
 )
 
-# add_executable(gui_node src/gui.cpp src/main.cpp)
-# target_link_libraries(gui_node
-#   ${catkin_LIBRARIES}
-#   ${OpenCV_LIBRARIES}
-#   Qt5::Widgets
-# )
+## 라이브러리 생성
+add_library(${PROJECT_NAME}_lib
+    src/checkuser.cpp
+    src/labeling.cpp
+)
 
 ## 실행 파일 생성
-add_executable(check_ui src/check_ui.cpp src/checkuser.cpp)
+add_executable(check_ui
+    src/check_ui.cpp
+    src/checkuser.cpp
+    src/labeling.cpp
+)
 
 ## 라이브러리 링크
 target_link_libraries(check_ui
+  ${PROJECT_NAME}_lib
   ${catkin_LIBRARIES}
   ${OpenCV_LIBRARIES}
   Qt5::Widgets
 )
-

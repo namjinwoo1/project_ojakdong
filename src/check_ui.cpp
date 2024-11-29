@@ -11,6 +11,7 @@
 #include <QInputDialog>
 #include <QLineEdit>
 #include <vector> // vector를 사용하기 위해 추가
+#include "labeling.h" // labeling.h만 포함
 
 using namespace cv;
 
@@ -25,6 +26,7 @@ private slots:
     void stopCamera();         // 카메라 중지
     void captureImage();       // 이미지 캡처
     void updateFrame();        // 카메라 프레임 업데이트
+    void createDataset(); // 데이터셋 디렉토리 생성
 
 private:
     QString currentUserName; // 현재 사용자 이름
@@ -33,6 +35,7 @@ private:
     QPushButton *startButton;  // 카메라 시작 버튼
     QPushButton *stopButton;   // 카메라 중지 버튼
     QPushButton *captureButton;// 캡처 버튼
+    QPushButton *labelButton;  // 라벨링 버튼 추가
     QTimer *timer;             // 카메라 프레임 업데이트용 타이머
     VideoCapture cap;          // OpenCV VideoCapture 객체
     Mat frame;                 // 현재 프레임 저장
@@ -54,16 +57,21 @@ UserDetectionUI::UserDetectionUI(QWidget *parent)
     startButton = new QPushButton("카메라 시작", this);
     stopButton = new QPushButton("카메라 중지", this);
     captureButton = new QPushButton("이미지 캡처", this);
+    labelButton = new QPushButton("데이터 라벨링", this); // 라벨링 버튼 추가
     captureButton->setEnabled(false); // 초기에는 캡처 버튼 비활성화
 
     mainLayout->addWidget(startButton);
     mainLayout->addWidget(stopButton);
     mainLayout->addWidget(captureButton);
+    mainLayout->addWidget(labelButton); // 라벨링 버튼 추가
 
     // 버튼 클릭 이벤트 연결
     connect(startButton, &QPushButton::clicked, this, &UserDetectionUI::startCamera);
     connect(stopButton, &QPushButton::clicked, this, &UserDetectionUI::stopCamera);
     connect(captureButton, &QPushButton::clicked, this, &UserDetectionUI::captureImage);
+    connect(labelButton, &QPushButton::clicked, this, &UserDetectionUI::createDataset);
+
+
 
     // 타이머와 프레임 업데이트 함수 연결
     connect(timer, &QTimer::timeout, this, &UserDetectionUI::updateFrame);
@@ -160,6 +168,23 @@ void UserDetectionUI::updateFrame() {
     // QLabel에 표시
     QImage qFrame = QImage(displayFrame.data, displayFrame.cols, displayFrame.rows, displayFrame.step, QImage::Format_RGB888).rgbSwapped();
     cameraLabel->setPixmap(QPixmap::fromImage(qFrame).scaled(cameraLabel->size(), Qt::KeepAspectRatio));
+}
+
+void UserDetectionUI::createDataset() {
+    QString baseDir = QDir::currentPath() + "/dataset";
+
+    // 사용자 이름 입력받기
+    bool ok;
+    QString userName = QInputDialog::getText(this, "사용자 이름 입력", "데이터셋 구조를 생성할 사용자 이름:", QLineEdit::Normal, "", &ok);
+
+    if (!ok || userName.isEmpty()) {
+        QMessageBox::warning(this, "오류", "사용자 이름을 입력하지 않았습니다.");
+        return;
+    }
+
+    // LabelingTool의 organizeDataset 메소드 호출
+    LabelingTool labelingTool;
+    labelingTool.organizeDataset(baseDir, userName);
 }
 
 // main 함수
