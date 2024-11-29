@@ -16,5 +16,8 @@
   <!-- OpenCV 의존성 -->
   <build_depend>opencv</build_depend>
   <exec_depend>opencv</exec_depend>
+
+  <build_depend>qt5</build_depend>
+  <exec_depend>qt5</exec_depend>
 </package>
 
