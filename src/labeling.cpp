@@ -1,7 +1,11 @@
 #include "labeling.h"
 #include <QDir>
 #include <QMessageBox>
+#include <QFile>
 #include <iostream>
+#include <map>
+#include <fstream>
+#include <opencv2/opencv.hpp>
 
 void LabelingTool::organizeDataset(const QString &baseDir, const QString &userName) {
     QDir datasetDir(baseDir);
@@ -34,6 +38,18 @@ void LabelingTool::organizeDataset(const QString &baseDir, const QString &userNa
         return;
     }
 
+    // 클래스 ID 동적 관리
+    static std::map<QString, int> classMap;
+    static int currentClassId = 1;
+    int userClassId;
+
+    if (classMap.find(userName) == classMap.end()) {
+        userClassId = currentClassId++;
+        classMap[userName] = userClassId;
+    } else {
+        userClassId = classMap[userName];
+    }
+
     // 이미지 파일을 train과 val로 분류
     int totalImages = images.size();
     int trainCount = static_cast<int>(totalImages * 0.8); // 80%를 train
@@ -52,10 +68,41 @@ void LabelingTool::organizeDataset(const QString &baseDir, const QString &userNa
 
         if (QFile::rename(oldPath, newPath)) {
             std::cout << "파일 이동 성공: " << oldPath.toStdString() << " -> " << newPath.toStdString() << std::endl;
+
+            // 라벨 txt 파일 생성
+            QString labelPath = newPath;
+            labelPath.replace(".jpg", ".txt").replace(".png", ".txt").replace(".bmp", ".txt");
+            generateLabelFile(labelPath, userClassId, newPath);
         } else {
             std::cerr << "파일 이동 실패: " << oldPath.toStdString() << std::endl;
         }
     }
 
     QMessageBox::information(nullptr, "완료", userName + " 데이터셋이 정리되었습니다.");
+}
+
+// 라벨 txt 파일 생성 함수
+void LabelingTool::generateLabelFile(const QString &labelPath, int classId, const QString &imagePath) {
+    cv::Mat image = cv::imread(imagePath.toStdString());
+    if (image.empty()) {
+        std::cerr << "이미지 로드 실패: " << imagePath.toStdString() << std::endl;
+        return;
+    }
+
+    // YOLO 형식으로 라벨 생성
+    std::ofstream outFile(labelPath.toStdString());
+    if (!outFile.is_open()) {
+        std::cerr << "라벨 파일 생성 실패: " << labelPath.toStdString() << std::endl;
+        return;
+    }
+
+    // 검출된 객체를 YOLO 형식으로 저장
+    outFile << classId << " "
+            << 0.5 << " "  // x_center (임시)
+            << 0.5 << " "  // y_center (임시)
+            << 0.1 << " "  // width (임시)
+            << 0.1 << std::endl; // height (임시)
+
+    outFile.close();
+    std::cout << "라벨 파일 생성 성공: " << labelPath.toStdString() << std::endl;
 }

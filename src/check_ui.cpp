@@ -12,6 +12,8 @@
 #include <QLineEdit>
 #include <vector> // vector를 사용하기 위해 추가
 #include "labeling.h" // labeling.h만 포함
+#include <ros/ros.h>
+#include <ros/package.h>
 
 using namespace cv;
 
@@ -119,7 +121,8 @@ void UserDetectionUI::captureImage() {
     }
 
     // 저장 폴더 경로 생성
-    QString baseDir = QDir::currentPath() + "/dataset";
+    std::string packagePath = ros::package::getPath("project_ojakdong");
+    QString baseDir = QString::fromStdString(packagePath) + "/dataset";
     QString userDir = baseDir + "/" + currentUserName;
 
     // 디렉토리 생성
@@ -171,7 +174,8 @@ void UserDetectionUI::updateFrame() {
 }
 
 void UserDetectionUI::createDataset() {
-    QString baseDir = QDir::currentPath() + "/dataset";
+    std::string packagePath = ros::package::getPath("project_ojakdong");
+    QString baseDir = QString::fromStdString(packagePath) + "/dataset";
 
     // 사용자 이름 입력받기
     bool ok;
@@ -189,6 +193,7 @@ void UserDetectionUI::createDataset() {
 
 // main 함수
 int main(int argc, char *argv[]) {
+    ros::init(argc, argv, "check_ui");
     QApplication app(argc, argv);
 
     UserDetectionUI window;

@@ -85,6 +85,48 @@ void generateDatasetPaths(const QString& datasetDir, const QString& outputPath) 
     ROS_INFO_STREAM("Dataset path file creation complete: " << resolvedOutputPath.toStdString());
 }
 
+void generateObjNames(const QString& objNamesPath, const QStringList& classDirs) {
+    std::ofstream outFile(objNamesPath.toStdString());
+    if (!outFile.is_open()) {
+        ROS_ERROR_STREAM("Unable to create obj.names file: " << objNamesPath.toStdString());
+        return;
+    }
+
+    for (const QString& className : classDirs) {
+        outFile << className.toStdString() << "\n";
+    }
+
+    outFile.close();
+    ROS_INFO_STREAM("obj.names file creation complete: " << objNamesPath.toStdString());
+}
+
+void generateObjData(const QString& objDataPath, const QString& objNamesPath, const QString& trainPath, const QString& valPath, const QString& backupPath) {
+    std::ofstream outFile(objDataPath.toStdString());
+    if (!outFile.is_open()) {
+        ROS_ERROR_STREAM("Unable to create obj.data file: " << objDataPath.toStdString());
+        return;
+    }
+
+    // 클래스 개수 계산
+    std::ifstream objNamesFile(objNamesPath.toStdString());
+    int numClasses = 0;
+    std::string line;
+    while (std::getline(objNamesFile, line)) {
+        if (!line.empty()) ++numClasses;
+    }
+    objNamesFile.close();
+
+    // obj.data 파일 내용 작성
+    outFile << "classes=" << numClasses << "\n";
+    outFile << "train=" << trainPath.toStdString() << "\n";
+    outFile << "valid=" << valPath.toStdString() << "\n";
+    outFile << "names=" << objNamesPath.toStdString() << "\n";
+    outFile << "backup=" << backupPath.toStdString() << "\n";
+
+    outFile.close();
+    ROS_INFO_STREAM("obj.data file creation complete: " << objDataPath.toStdString());
+}
+
 void generateJSONConfig(const QString& trainDir, const QString& jsonPath, const QString& configTemplatePath, const QString& outputConfigPath, const QString& packagePath) {
     QDir baseDir(trainDir);
     if (!baseDir.exists()) {
@@ -132,10 +174,17 @@ void generateJSONConfig(const QString& trainDir, const QString& jsonPath, const 
     // 데이터셋 경로 파일 생성
     QString trainPathFile = packagePath + "/dataset/train/train.txt";
     QString valPathFile = packagePath + "/dataset/val/val.txt";
+    QString objNamesPath = packagePath + "/dataset/obj.names";
+    QString objDataPath = packagePath + "/dataset/obj.data";
+    QString backupDir = packagePath + "/backup";
 
     generateDatasetPaths(trainDir, trainPathFile);
     generateDatasetPaths(QDir(trainDir).absolutePath().replace("train", "val"), valPathFile);
+    generateObjNames(objNamesPath, classDirs);
+    generateObjData(objDataPath, objNamesPath, trainPathFile, valPathFile, backupDir);
 }
+
+
 
 int main(int argc, char** argv) {
     ros::init(argc, argv, "make_config_node");
