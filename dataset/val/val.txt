@@ -1,0 +1,2 @@
+/home/jinwoo/catkin_ws/src/project_ojakdong/dataset/val/jw/jw_7.jpg
+/home/jinwoo/catkin_ws/src/project_ojakdong/dataset/val/jw/jw_6.jpg

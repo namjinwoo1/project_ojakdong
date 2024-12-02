@@ -1,0 +1,6 @@
+/home/jinwoo/catkin_ws/src/project_ojakdong/dataset/train/jw/jw_0.jpg
+/home/jinwoo/catkin_ws/src/project_ojakdong/dataset/train/jw/jw_3.jpg
+/home/jinwoo/catkin_ws/src/project_ojakdong/dataset/train/jw/jw_2.jpg
+/home/jinwoo/catkin_ws/src/project_ojakdong/dataset/train/jw/jw_5.jpg
+/home/jinwoo/catkin_ws/src/project_ojakdong/dataset/train/jw/jw_4.jpg
+/home/jinwoo/catkin_ws/src/project_ojakdong/dataset/train/jw/jw_1.jpg

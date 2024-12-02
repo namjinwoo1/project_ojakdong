@@ -1,0 +1,8 @@
+{
+   "backup_dir" : "/home/jinwoo/.ros/backup",
+   "classes" : [ "jw" ],
+   "filters_per_yolo_layer" : 18,
+   "num_classes" : 1,
+   "train_dir" : "/home/jinwoo/catkin_ws/src/project_ojakdong/dataset/train",
+   "val_dir" : "/home/jinwoo/catkin_ws/src/project_ojakdong/dataset/val"
+}

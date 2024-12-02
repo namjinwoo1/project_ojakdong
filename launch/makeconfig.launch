@@ -1,9 +1,14 @@
 <launch>
     <arg name="train_dir" default="$(find project_ojakdong)/dataset/train"/>
-    <arg name="json_path" default="$(find project_ojakdong)/config.json"/>
+    <arg name="json_path" default="$(find project_ojakdong)/model/config.json"/>
+    <arg name="config_template" default="$(find project_ojakdong)/model/yolov4.cfg" />
+    <arg name="output_config" default="$(find project_ojakdong)/model/yolov4_custom.cfg" />
 
     <node pkg="project_ojakdong" type="make_config_node" name="make_config_node" output="screen">
-        <param name="train_dir" value="$(arg train_dir)"/>
-        <param name="json_path" value="$(arg json_path)"/>
+        <param name="train_dir" value="$(arg train_dir)" />
+        <param name="json_path" value="$(arg json_path)" />
+        <param name="config_template" value="$(arg config_template)" />
+        <param name="output_config" value="$(arg output_config)" />
     </node>
+
 </launch>
