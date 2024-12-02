@@ -10,7 +10,7 @@ find_package(catkin REQUIRED COMPONENTS
   std_msgs
   roslib
 )
-
+find_package(jsoncpp REQUIRED)
 find_package(OpenCV REQUIRED)
 find_package(Qt5 REQUIRED COMPONENTS Widgets)
 
@@ -28,12 +28,15 @@ include_directories(
   ${OpenCV_INCLUDE_DIRS}
   ${Qt5Widgets_INCLUDE_DIRS}
   ${CMAKE_CURRENT_SOURCE_DIR}/src # 헤더 파일이 src 폴더에 위치
+  /usr/include/jsoncpp
 )
 
 ## 라이브러리 생성
 add_library(${PROJECT_NAME}_lib
     src/checkuser.cpp
     src/labeling.cpp
+    src/checkuser.h # src 내 헤더 파일 추가
+    src/labeling.h
 )
 
 ## 실행 파일 생성
@@ -41,6 +44,13 @@ add_executable(check_ui
     src/check_ui.cpp
     src/checkuser.cpp
     src/labeling.cpp
+)
+
+add_executable(make_config_node src/makeconfig.cpp)
+target_link_libraries(make_config_node
+  ${catkin_LIBRARIES}
+  Qt5::Widgets
+  jsoncpp # JSON 라이브러리 연결
 )
 
 ## 라이브러리 링크
