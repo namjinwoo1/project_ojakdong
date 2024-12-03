@@ -200,8 +200,8 @@ int main(int argc, char** argv) {
     // 패키지 경로 기반으로 경로 설정
     std::string trainDir = packagePath + "/dataset/train";
     std::string jsonPath = packagePath + "/model/config.json";
-    std::string configTemplatePath = packagePath + "/model/yolov4.cfg";
-    std::string outputConfigPath = packagePath + "/model/yolov4_custom.cfg";
+    std::string configTemplatePath = packagePath + "/model/yolov4-tiny.cfg";
+    std::string outputConfigPath = packagePath + "/model/yolov4-tiny_custom.cfg";
 
     ROS_INFO_STREAM("TrainDir: " << trainDir);
     ROS_INFO_STREAM("JsonPath: " << jsonPath);

@@ -12,8 +12,8 @@ using namespace std;
 
 UserDetector::UserDetector() {
     std::string package_path = ros::package::getPath("project_ojakdong");
-    const string CONFIG_PATH = package_path + "/model/yolov4.cfg";
-    const string WEIGHTS_PATH = package_path + "/model/yolov4.weights";
+    const string CONFIG_PATH = package_path + "/model/yolov4-tiny.cfg";
+    const string WEIGHTS_PATH = package_path + "/model/yolov4-tiny.weights";
     const string CLASSES_PATH = package_path + "/model/coco.names";
 
     net = readNetFromDarknet(CONFIG_PATH, WEIGHTS_PATH);
