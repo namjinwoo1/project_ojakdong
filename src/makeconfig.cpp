@@ -4,7 +4,7 @@
 #include <QDir>
 #include <iostream>
 #include <fstream>
-#include <QDirIterator> // QDirIterator를 사용하기 위한 헤더 추가
+#include <QDirIterator>
 #include <json/json.h>
 
 // YOLO 설정 파일 수정 함수
@@ -40,14 +40,11 @@ void updateYOLOConfig(const QString& configTemplatePath, const QString& outputCo
 // 데이터셋 경로 파일 생성 함수
 void generateDatasetPaths(const QString& datasetDir, const QString& outputPath) {
     QDir baseDir(datasetDir);
-
-    // 디렉토리 확인
     if (!baseDir.exists()) {
         ROS_ERROR_STREAM("Dataset folder does not exist: " << datasetDir.toStdString());
         return;
     }
 
-    // 하위 디렉토리의 모든 이미지 파일 검색
     QStringList filters = {"*.jpg", "*.png", "*.jpeg", "*.bmp"};
     QStringList imageFiles;
     QDirIterator it(datasetDir, filters, QDir::Files, QDirIterator::Subdirectories);
@@ -56,7 +53,6 @@ void generateDatasetPaths(const QString& datasetDir, const QString& outputPath) 
         imageFiles << it.next();
     }
 
-    // 디버깅: 감지된 파일 수 확인
     ROS_INFO_STREAM("Found " << imageFiles.size() << " image files in: " << datasetDir.toStdString());
 
     if (imageFiles.isEmpty()) {
@@ -64,16 +60,9 @@ void generateDatasetPaths(const QString& datasetDir, const QString& outputPath) 
         return;
     }
 
-    // 파일 경로 출력
-    for (const QString& file : imageFiles) {
-        ROS_INFO_STREAM("Image file: " << file.toStdString());
-    }
-
-    // 파일 저장
-    QString resolvedOutputPath = QDir::cleanPath(outputPath);
-    std::ofstream outFile(resolvedOutputPath.toStdString());
+    std::ofstream outFile(outputPath.toStdString());
     if (!outFile.is_open()) {
-        ROS_ERROR_STREAM("Unable to create dataset path file: " << resolvedOutputPath.toStdString());
+        ROS_ERROR_STREAM("Unable to create dataset path file: " << outputPath.toStdString());
         return;
     }
 
@@ -82,24 +71,27 @@ void generateDatasetPaths(const QString& datasetDir, const QString& outputPath) 
     }
 
     outFile.close();
-    ROS_INFO_STREAM("Dataset path file creation complete: " << resolvedOutputPath.toStdString());
+    ROS_INFO_STREAM("Dataset path file creation complete: " << outputPath.toStdString());
 }
 
-void generateObjNames(const QString& objNamesPath, const QStringList& classDirs) {
+// obj.names 파일 생성
+void generateObjNames(const QString& objNamesPath, const QStringList& userClasses) {
     std::ofstream outFile(objNamesPath.toStdString());
     if (!outFile.is_open()) {
         ROS_ERROR_STREAM("Unable to create obj.names file: " << objNamesPath.toStdString());
         return;
     }
 
-    for (const QString& className : classDirs) {
-        outFile << className.toStdString() << "\n";
+    outFile << "person\n";  // 기본 클래스
+    for (const QString& userClass : userClasses) {
+        outFile << userClass.toStdString() << "\n";
     }
 
     outFile.close();
     ROS_INFO_STREAM("obj.names file creation complete: " << objNamesPath.toStdString());
 }
 
+// obj.data 파일 생성
 void generateObjData(const QString& objDataPath, const QString& objNamesPath, const QString& trainPath, const QString& valPath, const QString& backupPath) {
     std::ofstream outFile(objDataPath.toStdString());
     if (!outFile.is_open()) {
@@ -107,7 +99,6 @@ void generateObjData(const QString& objDataPath, const QString& objNamesPath, co
         return;
     }
 
-    // 클래스 개수 계산
     std::ifstream objNamesFile(objNamesPath.toStdString());
     int numClasses = 0;
     std::string line;
@@ -116,7 +107,6 @@ void generateObjData(const QString& objDataPath, const QString& objNamesPath, co
     }
     objNamesFile.close();
 
-    // obj.data 파일 내용 작성
     outFile << "classes=" << numClasses << "\n";
     outFile << "train=" << trainPath.toStdString() << "\n";
     outFile << "valid=" << valPath.toStdString() << "\n";
@@ -127,6 +117,7 @@ void generateObjData(const QString& objDataPath, const QString& objNamesPath, co
     ROS_INFO_STREAM("obj.data file creation complete: " << objDataPath.toStdString());
 }
 
+// JSON 및 경로 파일 생성
 void generateJSONConfig(const QString& trainDir, const QString& jsonPath, const QString& configTemplatePath, const QString& outputConfigPath, const QString& packagePath) {
     QDir baseDir(trainDir);
     if (!baseDir.exists()) {
@@ -134,44 +125,39 @@ void generateJSONConfig(const QString& trainDir, const QString& jsonPath, const 
         return;
     }
 
-    QStringList classDirs = baseDir.entryList(QDir::Dirs | QDir::NoDotAndDotDot);
-    if (classDirs.isEmpty()) {
-        ROS_ERROR_STREAM("There is no class directory in the learning folder.");
+    QStringList userClasses = baseDir.entryList(QDir::Dirs | QDir::NoDotAndDotDot);
+
+    if (userClasses.isEmpty()) {
+        ROS_ERROR_STREAM("There is no user data in the train folder.");
         return;
     }
 
     Json::Value root;
     Json::Value classArray(Json::arrayValue);
 
-    for (const QString& className : classDirs) {
-        classArray.append(className.toStdString());
+    classArray.append("person");  // 기본 클래스 추가
+    for (const QString& userClass : userClasses) {
+        classArray.append(userClass.toStdString());
     }
 
-    int numClasses = classDirs.size();
-    int filters = 3 * (numClasses + 5);
+    int numClasses = userClasses.size() + 1;  // 기본 클래스 포함
+    int filters = (numClasses + 5) * 3;
 
-    // JSON 정보 설정
     root["classes"] = classArray;
     root["num_classes"] = numClasses;
     root["filters_per_yolo_layer"] = filters;
-    root["train_dir"] = trainDir.toStdString();
-    root["val_dir"] = QDir(trainDir).absolutePath().replace("train", "val").toStdString();
-    root["backup_dir"] = QDir::currentPath().toStdString() + "/backup";
 
     std::ofstream outFile(jsonPath.toStdString());
     if (!outFile.is_open()) {
-        ROS_ERROR_STREAM("Unable to save JSON file:" << jsonPath.toStdString());
+        ROS_ERROR_STREAM("Unable to save JSON file: " << jsonPath.toStdString());
         return;
     }
 
     outFile << root.toStyledString();
     outFile.close();
-    ROS_INFO_STREAM("JSON configuration file creation complete: " << jsonPath.toStdString());
 
-    // YOLO 설정 파일 업데이트
     updateYOLOConfig(configTemplatePath, outputConfigPath, numClasses, filters);
 
-    // 데이터셋 경로 파일 생성
     QString trainPathFile = packagePath + "/dataset/train/train.txt";
     QString valPathFile = packagePath + "/dataset/val/val.txt";
     QString objNamesPath = packagePath + "/dataset/obj.names";
@@ -180,43 +166,31 @@ void generateJSONConfig(const QString& trainDir, const QString& jsonPath, const 
 
     generateDatasetPaths(trainDir, trainPathFile);
     generateDatasetPaths(QDir(trainDir).absolutePath().replace("train", "val"), valPathFile);
-    generateObjNames(objNamesPath, classDirs);
+    generateObjNames(objNamesPath, userClasses);
     generateObjData(objDataPath, objNamesPath, trainPathFile, valPathFile, backupDir);
 }
-
-
 
 int main(int argc, char** argv) {
     ros::init(argc, argv, "make_config_node");
     ros::NodeHandle nh;
 
-    // ROS 패키지 경로 가져오기
     std::string packagePath = ros::package::getPath("project_ojakdong");
     if (packagePath.empty()) {
         ROS_ERROR("Package path not found: project_ojakdong");
         return -1;
     }
 
-    // 패키지 경로 기반으로 경로 설정
     std::string trainDir = packagePath + "/dataset/train";
     std::string jsonPath = packagePath + "/model/config.json";
     std::string configTemplatePath = packagePath + "/model/yolov4-tiny.cfg";
     std::string outputConfigPath = packagePath + "/model/yolov4-tiny_custom.cfg";
 
-    ROS_INFO_STREAM("TrainDir: " << trainDir);
-    ROS_INFO_STREAM("JsonPath: " << jsonPath);
-    ROS_INFO_STREAM("ConfigTemplatePath: " << configTemplatePath);
-    ROS_INFO_STREAM("OutputConfigPath: " << outputConfigPath);
-
-    // JSON 파일 생성 및 YOLO 설정 파일 수정
     generateJSONConfig(QString::fromStdString(trainDir),
-                    QString::fromStdString(jsonPath),
-                    QString::fromStdString(configTemplatePath),
-                    QString::fromStdString(outputConfigPath),
-                    QString::fromStdString(packagePath));
+                       QString::fromStdString(jsonPath),
+                       QString::fromStdString(configTemplatePath),
+                       QString::fromStdString(outputConfigPath),
+                       QString::fromStdString(packagePath));
 
     ros::spinOnce();
     return 0;
 }
-
-

@@ -1,0 +1,5 @@
+classes=2
+train=/home/jinwoo/catkin_ws/src/project_ojakdong/dataset/train/train.txt
+valid=/home/jinwoo/catkin_ws/src/project_ojakdong/dataset/val/val.txt
+names=/home/jinwoo/catkin_ws/src/project_ojakdong/dataset/obj.names
+backup=/home/jinwoo/catkin_ws/src/project_ojakdong/backup

@@ -1,0 +1,17 @@
+/home/jinwoo/catkin_ws/src/project_ojakdong/dataset/train/jw/jw_0.jpg
+/home/jinwoo/catkin_ws/src/project_ojakdong/dataset/train/jw/jw_3.jpg
+/home/jinwoo/catkin_ws/src/project_ojakdong/dataset/train/jw/jw_13.jpg
+/home/jinwoo/catkin_ws/src/project_ojakdong/dataset/train/jw/jw_20.jpg
+/home/jinwoo/catkin_ws/src/project_ojakdong/dataset/train/jw/jw_12.jpg
+/home/jinwoo/catkin_ws/src/project_ojakdong/dataset/train/jw/jw_15.jpg
+/home/jinwoo/catkin_ws/src/project_ojakdong/dataset/train/jw/jw_16.jpg
+/home/jinwoo/catkin_ws/src/project_ojakdong/dataset/train/jw/jw_21.jpg
+/home/jinwoo/catkin_ws/src/project_ojakdong/dataset/train/jw/jw_10.jpg
+/home/jinwoo/catkin_ws/src/project_ojakdong/dataset/train/jw/jw_19.jpg
+/home/jinwoo/catkin_ws/src/project_ojakdong/dataset/train/jw/jw_2.jpg
+/home/jinwoo/catkin_ws/src/project_ojakdong/dataset/train/jw/jw_17.jpg
+/home/jinwoo/catkin_ws/src/project_ojakdong/dataset/train/jw/jw_14.jpg
+/home/jinwoo/catkin_ws/src/project_ojakdong/dataset/train/jw/jw_18.jpg
+/home/jinwoo/catkin_ws/src/project_ojakdong/dataset/train/jw/jw_11.jpg
+/home/jinwoo/catkin_ws/src/project_ojakdong/dataset/train/jw/jw_4.jpg
+/home/jinwoo/catkin_ws/src/project_ojakdong/dataset/train/jw/jw_1.jpg
