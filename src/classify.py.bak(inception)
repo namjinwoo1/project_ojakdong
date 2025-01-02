@@ -1,0 +1,196 @@
+#!/usr/bin/env python3
+
+import cv2
+import tensorflow as tf
+import numpy as np
+import rospy
+import rospkg
+import os
+import json
+from cv_bridge import CvBridge
+from project_ojakdong.msg import DetectionResult, ClassifiedResult
+from geometry_msgs.msg import Polygon, Point32
+import subprocess
+import signal
+
+
+class ClassifyNode:
+    def __init__(self, inception_model_path, class_indices_path):
+        os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'  # 1: INFO, 2: WARNING, 3: ERROR
+        self.bridge = CvBridge()
+
+        # InceptionV3 모델 로드
+        self.inception_model = tf.keras.models.load_model(inception_model_path)
+
+        # 클래스 인덱스 로드
+        self.class_indices = self.load_class_indices(class_indices_path)
+        self.class_names = {v: k for k, v in self.class_indices.items()}  # 인덱스를 이름으로 변환
+        self.target_user_name = self.get_user_name_from_ros_param()
+
+        if not self.target_user_name:
+            rospy.logerr("No user name provided. Classification cannot start.")
+            raise ValueError("User name not set in ROS parameters.")
+
+        # ROS 설정
+        rospy.Subscriber("/detection_result", DetectionResult, self.detection_callback)
+        self.result_publisher = rospy.Publisher("/classified_image", DetectionResult, queue_size=1)
+        self.classified_publisher = rospy.Publisher("/classified_result", ClassifiedResult, queue_size=1)
+
+        # camera_processor 실행
+        self.camera_process = None
+        self.start_camera_processor()
+
+        rospy.loginfo("ClassifyNode started, subscribing to /detection_result")
+
+    def load_class_indices(self, class_indices_path):
+        """클래스 인덱스 로드"""
+        try:
+            with open(class_indices_path, 'r') as f:
+                class_indices = json.load(f)
+            rospy.loginfo(f"Loaded class indices: {class_indices}")
+            return class_indices
+        except Exception as e:
+            rospy.logerr(f"Failed to load class indices: {e}")
+            return {}
+
+    def get_user_name_from_ros_param(self):
+        """ROS 파라미터에서 사용자 이름 가져오기"""
+        if rospy.has_param('/current_user_name'):
+            user_name = rospy.get_param('/current_user_name')
+            if user_name in self.class_indices:
+                rospy.loginfo(f"Selected user from ROS param: {user_name}")
+                return user_name
+            else:
+                rospy.logerr(f"User name '{user_name}' not found in class indices.")
+                return None
+        else:
+            rospy.logerr("ROS parameter '/current_user_name' is not set.")
+            return None
+
+    def start_camera_processor(self):
+        """camera_processor_node 실행"""
+        if self.camera_process is None:
+            rospy.loginfo("Starting camera_processor_node...")
+            self.camera_process = subprocess.Popen(["rosrun", "project_ojakdong", "camera_processor.py"])
+        else:
+            rospy.logwarn("camera_processor is already running.")
+
+    def stop_camera_processor(self):
+        """camera_processor_node 종료"""
+        if self.camera_process is not None:
+            rospy.loginfo("Stopping camera_processor...")
+            self.camera_process.send_signal(signal.SIGINT)
+            self.camera_process.wait()
+            self.camera_process = None
+        else:
+            rospy.logwarn("camera_processor_node is not running.")
+
+    def detection_callback(self, msg):
+        try:
+            # YOLO 탐지된 이미지 가져오기
+            frame = self.bridge.imgmsg_to_cv2(msg.image, "bgr8")
+
+            # 결과 메시지 초기화
+            detection_result = DetectionResult()
+            detection_result.image = msg.image  # YOLO 탐지 이미지 복사
+            classified_result = ClassifiedResult()  # Inception 결과 메시지 생성
+
+            for i, box in enumerate(msg.boxes):
+                # 박스 좌표 가져오기
+                top_left = (int(box.points[0].x), int(box.points[0].y))
+                bottom_right = (int(box.points[2].x), int(box.points[2].y))
+
+                # 박스 영역 잘라내기
+                cropped_img = frame[top_left[1]:bottom_right[1], top_left[0]:bottom_right[0]]
+
+                # 크기가 0인 이미지는 건너뜀
+                if cropped_img.size == 0:
+                    rospy.logwarn(f"Skipped empty cropped image for box {i}")
+                    continue
+
+                # InceptionV3 입력 크기에 맞게 조정
+                resized_img = cv2.resize(cropped_img, (299, 299)) / 255.0
+                resized_img = np.expand_dims(resized_img, axis=0)
+
+                # InceptionV3 분류 수행
+                predictions = self.inception_model.predict(resized_img, verbose=0)
+                class_probs = {class_name: predictions[0][idx] for class_name, idx in self.class_indices.items()}
+                class_name = max(class_probs, key=class_probs.get)
+                class_prob = class_probs[class_name]
+
+                # 확률 임계값 기준으로 Other 처리
+                self.confidence_threshold = rospy.get_param('/confidence_threshold', 0.68)
+                if class_prob < self.confidence_threshold:
+                    class_name = "Other"
+
+                # DetectionResult에 YOLO 정보 추가
+                polygon = Polygon()
+                polygon.points = [
+                    Point32(x=top_left[0], y=top_left[1], z=0),
+                    Point32(x=bottom_right[0], y=top_left[1], z=0),
+                    Point32(x=bottom_right[0], y=bottom_right[1], z=0),
+                    Point32(x=top_left[0], y=bottom_right[1], z=0)
+                ]
+                detection_result.boxes.append(polygon)
+                detection_result.centers.append(Point32(
+                    x=(top_left[0] + bottom_right[0]) / 2,
+                    y=(top_left[1] + bottom_right[1]) / 2,
+                    z=0
+                ))
+                detection_result.class_ids.append(msg.class_ids[i])
+                detection_result.confidences.append(msg.confidences[i])
+
+                # ClassifiedResult에 Inception 결과 추가
+                class_id = self.class_indices.get(class_name, -1)  # Other는 -1로 설정
+                classified_result.custom_class_ids.append(class_id)
+                classified_result.custom_class_names.append(class_name)
+
+                # 타겟 사용자 강조 표시
+                if class_name == self.target_user_name:
+                    classified_result.target_user_name = self.target_user_name
+                    color = (0, 255, 0)  # 초록색
+                else:
+                    color = (0, 0, 255)  # 빨간색
+
+                # 결과 이미지에 표시
+                label = f"{class_name} ({class_prob * 100:.1f}%)"
+                cv2.rectangle(frame, top_left, bottom_right, color, 2)
+                cv2.putText(frame, label, (top_left[0], top_left[1] - 10),
+                            cv2.FONT_HERSHEY_SIMPLEX, 0.6, color, 2)
+
+            # DetectionResult와 ClassifiedResult 메시지 발행
+            self.result_publisher.publish(detection_result)
+            self.classified_publisher.publish(classified_result)
+
+            # 이미지 출력
+            cv2.imshow("Classified Image", frame)
+            if cv2.waitKey(1) & 0xFF == ord('q'):
+                rospy.signal_shutdown("User terminated.")
+
+        except Exception as e:
+            rospy.logerr(f"Error during detection callback: {e}")
+
+    def __del__(self):
+        """객체 소멸 시 camera_processor 종료"""
+        self.stop_camera_processor()
+
+
+def main():
+    rospy.init_node("classify_node")
+
+    rospack = rospkg.RosPack()
+    package_path = rospack.get_path('project_ojakdong')
+    inception_model_path = os.path.join(package_path, 'model/inceptionv3_finetuned.h5')
+    class_indices_path = os.path.join(package_path, 'model/class_indices.json')
+
+    node = ClassifyNode(inception_model_path, class_indices_path)
+
+    try:
+        rospy.spin()
+    finally:
+        node.stop_camera_processor()
+        cv2.destroyAllWindows()
+
+
+if __name__ == "__main__":
+    main()

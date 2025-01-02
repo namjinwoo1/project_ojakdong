@@ -1,0 +1,10 @@
+<launch>
+    <arg name="train_dir" default="$(find project_ojakdong)/dataset/train"/>
+    <arg name="json_path" default="$(find project_ojakdong)/model/config.json"/>
+
+    <node pkg="project_ojakdong" type="make_config_node" name="make_config_node" output="screen">
+        <param name="train_dir" value="$(arg train_dir)" />
+        <param name="json_path" value="$(arg json_path)" />
+    </node>
+
+</launch>

@@ -1,0 +1,5 @@
+{
+   "classes" : [ "person", "JW", "test" ],
+   "filters_per_yolo_layer" : 24,
+   "num_classes" : 3
+}

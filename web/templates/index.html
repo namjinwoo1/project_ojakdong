@@ -1,0 +1,341 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>User Detection UI</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: #F4F4F9; /* 배경색 추가 */
+        }
+
+        .container {
+            max-width: 800px;
+            margin: 50px auto; /* 화면 중앙으로 이동 */
+            text-align: center;
+            padding: 20px;
+            background: white; /* 배경색 */
+            border-radius: 10px; /* 모서리 둥글게 */
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1); /* 그림자 효과 */
+        }
+
+        h1 {
+            color: #333333;
+            font-size: 28px;
+            margin-bottom: 20px;
+        }
+
+        .camera-feed {
+            max-width: 100%; /* 화면 크기에 맞게 조정 */
+            aspect-ratio: 16 / 12; /* 비율 유지 */
+            margin: 20px auto;
+            background-color: #000;
+            border: 5px solid #ddd; /* 테두리 추가 */
+            border-radius: 10px; /* 모서리 둥글게 */
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2); /* 그림자 효과 */
+            overflow: hidden; /* 넘치는 이미지 잘라내기 */
+        }
+
+        .camera-feed img {
+            width: 100%; /* 부모 요소 너비에 맞게 확장 */
+            height: auto; /* 비율 유지 */
+            background-color: #000; /* 초기 검은 화면 */
+        }
+
+        button {
+            margin: 10px;
+            padding: 12px 24px;
+            font-size: 16px;
+            color: white; /* 텍스트 색상 */
+            background-color: #333333; /* 어두운 회색 배경 */
+            border: none; /* 테두리 제거 */
+            border-radius: 5px; /* 모서리를 둥글게 */
+            cursor: pointer; /* 마우스 오버 시 손가락 커서 표시 */
+            transition: background-color 0.3s; /* 부드러운 전환 효과 */
+        }
+
+        button:hover {
+            background-color: #1a1a1a; /* 호버 시 더 어두운 회색 */
+        }
+
+        .status {
+            margin-top: 20px;
+            color: #007BFF;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1> 오작동 마스터 </h1>
+        <div class="camera-feed">
+            <img src="/video_feed" id="cameraFeed" alt="Camera Feed">
+        </div>
+        
+        <!-- 사용자 이름 입력 -->
+        <div class="input-group">
+            <label for="userName">User Name:</label>
+            <input type="text" id="userName" placeholder="Enter user name">
+        </div>
+
+        <button onclick="startCamera()"><i class="fa-solid fa-play"></i>사용자 등록</button>
+        <button onclick="stopCamera()"><i class="fa-solid fa-stop"></i>카메라 정지</button>
+        <button onclick="captureImage()"><i class="fa-solid fa-camera"></i>이미지 캡처</button>
+        <button onclick="sendRequest('/label_data')"><i class="fa-solid fa-tags"></i>데이터 라벨링</button>
+        <button onclick="sendRequest('/start_finetuning')"><i class="fa-solid fa-rocket"></i>파인튜닝 시작</button>
+        <button onclick="startClassification()"><i class="fa-solid fa-filter"></i> 화면 출력</button>
+        <button onclick="openFilterSettings()"><i class="fa-solid fa-cog"></i>필터 설정</button>
+        <button onclick="startRobotControl()"><i class="fa-solid fa-robot"></i>로봇 이동</button>
+        <button onclick="stopRobotControl()"><i class="fa-solid fa-stop"></i>로봇 정지</button>
+        <div class="status" id="statusMessage"></div>
+        <div id="settingsPopup" style="display:none;">
+            <h2>필터 설정</h2>
+            <label for="brightness">밝기: <span id="brightnessValue">50</span></label><br>
+            <input type="range" id="brightness" min="0" max="100" value="50" oninput="updateValue('brightness')"><br>
+        
+            <label for="contrast">대비: <span id="contrastValue">50</span></label><br>
+            <input type="range" id="contrast" min="0" max="100" value="50" oninput="updateValue('contrast')"><br>
+        
+            <label for="blur">블러 강도: <span id="blurValue">0</span></label><br>
+            <input type="range" id="blur" min="0" max="50" value="0" oninput="updateValue('blur')"><br>
+        
+            <button onclick="saveFilterSettings()">저장</button>
+            <button onclick="closeSettingsPopup()">닫기</button>
+        </div>
+    </div>
+    <script>
+        let cameraInterval = null;
+        let filterInterval = null;
+        let isCameraRunning = false;
+    
+        function updateCameraFeed() {
+            const cameraFeed = document.getElementById('cameraFeed');
+            cameraFeed.src = `/video_feed?timestamp=${new Date().getTime()}`;
+        }
+    
+        function updateFilterFeed() {
+            const cameraFeed = document.getElementById('cameraFeed');
+            cameraFeed.src = `/filtered_image_feed?timestamp=${new Date().getTime()}`;
+        }
+    
+        function toggleCaptureButton(enable) {
+            const captureButton = document.querySelector("button[onclick='captureImage()']");
+            captureButton.disabled = !enable;
+            captureButton.style.opacity = enable ? 1 : 0.5; // 시각적 비활성화 효과
+        }
+    
+        // 카메라 시작
+        function startCamera() {
+            console.log("Camera started.");
+            fetch("/start_camera", { method: "POST" })
+                .then(response => response.json())
+                .then(data => {
+                    console.log(data.message);
+                    toggleCaptureButton(true); // 캡처 버튼 활성화
+                    isCameraRunning = true;
+                    if (!cameraInterval) {
+                        cameraInterval = setInterval(updateCameraFeed, 1000 / 30); // 초당 30프레임
+                    }
+                })
+                .catch(err => console.error("Error starting camera:", err));
+        }
+    
+        // 카메라 정지
+        function stopCamera() {
+            console.log("Camera stopped.");
+            fetch("/stop_camera", { method: "POST" })
+                .then(response => response.json())
+                .then(data => {
+                    console.log(data.message);
+                    toggleCaptureButton(false); // 캡처 버튼 비활성화
+                    const cameraFeed = document.getElementById('cameraFeed');
+                    cameraFeed.removeAttribute('src'); // 이미지 로드 제거
+                    cameraFeed.style.backgroundColor = '#000'; // 검은 화면 유지
+                    isCameraRunning = false;
+    
+                    if (cameraInterval) {
+                        clearInterval(cameraInterval); // 카메라 업데이트 중지
+                        cameraInterval = null;
+                    }
+    
+                    stopFilterDisplay(); // 필터링 화면 출력도 중지
+                })
+                .catch(err => console.error("Error stopping camera:", err));
+        }
+
+        function startClassification() {
+            const userName = document.getElementById("userName").value.trim();
+            if (!userName) {
+                alert("Please enter a user name before starting classification.");
+                return;
+            }
+            if (isCameraRunning) {
+                alert("카메라가 실행 중일 때는 필터링 화면을 출력할 수 없습니다.");
+                return;
+            }
+            
+            fetch("/start_classification", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                },
+                body: JSON.stringify({ userName: userName }),
+            })
+            .then(response => response.json())
+            .then(data => {
+                alert(data.message);
+                console.log(data.message);
+        
+                // 필터링 피드 업데이트 시작
+                if (!filterInterval && data.success) {
+                    filterInterval = setInterval(updateFilterFeed, 1000 / 30); // 초당 30프레임
+                }
+            })
+            .catch((error) => {
+                console.error("Error starting classification:", error);
+            });
+        }     
+    
+        async function captureImage() {
+            const userName = document.getElementById("userName").value.trim();
+            const statusElement = document.getElementById('statusMessage');
+    
+            if (!userName) {
+                statusElement.textContent = 'Please enter a user name before capturing an image.';
+                return;
+            }
+    
+            statusElement.textContent = 'Processing...';
+    
+            try {
+                const response = await fetch('/capture_image', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ userName: userName })
+                });
+    
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+    
+                const data = await response.json();
+                statusElement.textContent = data.message;
+                console.log(`Success: ${data.message}`);
+            } catch (error) {
+                statusElement.textContent = 'An error occurred.';
+                console.error('Error:', error);
+            }
+        }
+         
+        async function sendRequest(endpoint) {
+            const statusElement = document.getElementById('statusMessage');
+            statusElement.textContent = 'Processing...';
+    
+            try {
+                const response = await fetch(endpoint, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    }
+                });
+    
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+    
+                const data = await response.json();
+                statusElement.textContent = data.message;
+                console.log(`Success: ${data.message}`);
+            } catch (error) {
+                statusElement.textContent = 'An error occurred.';
+                console.error('Error:', error);
+            }
+        }
+        async function startRobotControl() {
+            try {
+                const response = await fetch('/start_robot_control', { method: 'POST' });
+                const data = await response.json();
+                alert(data.message);
+            } catch (error) {
+                console.error('Error starting robot control:', error);
+            }
+        }
+        async function stopRobotControl() {
+            try {
+                const response = await fetch('/stop_robot_control', { method: 'POST' });
+                const data = await response.json();
+                alert(data.message);
+            } catch (error) {
+                console.error('Error stopping robot control:', error);
+            }
+        }
+        // 슬라이더 값 업데이트 (실시간으로 값 표시)
+        function updateValue(setting) {
+            const value = document.getElementById(setting).value;
+            document.getElementById(setting + "Value").textContent = value;
+        }
+
+        // 필터 설정 팝업 열기 (기존 설정값 불러오기)
+        async function openFilterSettings() {
+            try {
+                const response = await fetch('/get_filter_config');
+                const data = await response.json();
+
+                if (data.success) {
+                    // 슬라이더 값 설정
+                    document.getElementById("brightness").value = data.settings.brightness;
+                    document.getElementById("contrast").value = data.settings.contrast;
+                    document.getElementById("blur").value = data.settings.blur;
+
+                    // 현재 값 텍스트 업데이트
+                    updateValue('brightness');
+                    updateValue('contrast');
+                    updateValue('blur');
+                } else {
+                    alert("기본 필터 설정을 불러올 수 없습니다. 초기값으로 진행합니다.");
+                }
+                document.getElementById("settingsPopup").style.display = "block";
+            } catch (error) {
+                console.error('Error loading filter settings:', error);
+            }
+        }
+
+        // 필터 설정 저장 (서버로 업데이트)
+        async function saveFilterSettings() {
+            const brightness = document.getElementById("brightness").value;
+            const contrast = document.getElementById("contrast").value;
+            const blur = document.getElementById("blur").value;
+
+            try {
+                const response = await fetch('/update_filter_config', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        brightness: brightness,
+                        contrast: contrast,
+                        blur: blur
+                    })
+                });
+
+                const data = await response.json();
+                alert(data.message);
+                closeSettingsPopup();
+            } catch (error) {
+                console.error('Error updating filter settings:', error);
+            }
+        }
+        // 팝업 닫기
+        function closeSettingsPopup() {
+            document.getElementById("settingsPopup").style.display = "none";
+        }
+    </script>    
+</body>
+</html>

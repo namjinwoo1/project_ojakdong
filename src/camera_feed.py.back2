@@ -1,0 +1,163 @@
+#!/usr/bin/env python3
+# (ros통신 라즈베리파이4 yolov4로 한 결과 - 타겟 감지 후 동작 추가)
+
+import copy
+import cv2
+import numpy as np
+import rospy
+import rospkg
+import os
+from sensor_msgs.msg import Image, LaserScan
+from std_msgs.msg import Float32MultiArray, String
+from cv_bridge import CvBridge  # ROS 이미지 메시지와 OpenCV 이미지 변환을 위한 라이브러리
+
+class ImageProcessor:
+    def __init__(self):
+        self.bridge = CvBridge()  # CvBridge 객체 생성 (OpenCV 이미지와 ROS 메시지 간 변환)
+        self.image_msg = Image()
+
+        # usb_cam으로부터 카메라 이미지 수신
+        # self.camera_subscriber = rospy.Subscriber('/camera/rgb/image_raw', Image, self.camera_listener)
+        self.camera_subscriber = rospy.Subscriber('/usb_cam/image_raw', Image, self.camera_listener)
+        
+        # 라이다 데이터 수신
+        self.lidar_subscriber = rospy.Subscriber('/scan', LaserScan, self.lidar_listener)
+
+        # YOLO 모델 경로 설정
+        rospack = rospkg.RosPack()
+        package_path = rospack.get_path('project_ojakdong')
+        yolo_weights = os.path.join(package_path, 'model/yolov4-tiny.weights')
+        yolo_cfg = os.path.join(package_path, 'model/yolov4-tiny.cfg')
+
+        # YOLO 모델 로드 (OpenCV DNN 모듈 사용)
+        self.net = cv2.dnn.readNetFromDarknet(yolo_cfg, yolo_weights)
+
+        # OpenCV 창 크기 설정
+        self.cv2_frame_size = (400, 320)
+        cv2.namedWindow("robot_view", cv2.WINDOW_NORMAL)
+        cv2.resizeWindow("robot_view", *self.cv2_frame_size)
+
+        # 퍼블리셔 및 서브스크라이버 설정
+        self.target_detection_publisher = rospy.Publisher('/target_detection_info', Float32MultiArray, queue_size=10)
+        self.processed_image_publisher = rospy.Publisher('/processed_image', Image, queue_size=10)
+        self.robot_action_subscriber = rospy.Subscriber('/robot_action', String, self.robot_action_listener)
+        self.robot_state_subscriber = rospy.Subscriber('/robot_state', String, self.robot_state_listener)
+
+        # 로봇 상태 및 동작 변수
+        self.robot_action = ""
+        self.robot_state = "IDLE"
+        self.lidar_distance = float('inf')  # 초기 라이다 거리값
+
+        # 동작 상태를 위한 내부 변수
+        self.target_detected = False
+        self.target_distance_threshold = 0.5  # 멈추는 기준 거리 (단위: m)
+
+    def camera_listener(self, msg):
+        """카메라 이미지 수신 콜백 함수"""
+        self.image_msg = msg
+
+    def robot_action_listener(self, msg):
+        """로봇 동작 수신 콜백 함수"""
+        self.robot_action = msg.data
+
+    def robot_state_listener(self, msg):
+        """로봇 상태 수신 콜백 함수"""
+        self.robot_state = msg.data
+
+    def lidar_listener(self, msg):
+        """라이다 데이터 수신 콜백 함수"""
+        # 라이다 거리 중 가장 가까운 물체의 거리
+        self.lidar_distance = min(msg.ranges)
+
+    def get_target_detection_info(self, frame):
+        """YOLO 모델을 사용해 타겟 탐지"""
+        height, width = frame.shape[:2]
+
+        # YOLO 입력 블롭 생성
+        blob = cv2.dnn.blobFromImage(frame, 1/255.0, (416, 416), (0, 0, 0), True, crop=False)
+        self.net.setInput(blob)
+        layer_names = self.net.getLayerNames()
+        output_layers = [layer_names[i - 1] for i in self.net.getUnconnectedOutLayers()]
+        detections = self.net.forward(output_layers)
+
+        target_detected = False
+        x_center = y_center = None
+
+        for detection in detections:
+            for obj in detection:
+                scores = obj[5:]
+                class_id = np.argmax(scores)
+                confidence = scores[class_id]
+                if confidence > 0.5:  # confidence threshold
+                    center_x = int(obj[0] * width)
+                    center_y = int(obj[1] * height)
+                    target_detected = True
+                    x_center = center_x
+                    y_center = center_y
+                    break  # 첫 번째 타겟만 감지 후 종료
+
+        return target_detected, x_center, y_center
+
+    def update_view(self):
+        """뷰 업데이트 및 타겟 탐지"""
+        try:
+            while not rospy.is_shutdown():
+                if len(self.image_msg.data) == 0:
+                    continue
+
+                # ROS 메시지를 OpenCV 이미지로 변환
+                height = self.image_msg.height
+                width = self.image_msg.width
+                channels = 3
+                self.image_np = np.frombuffer(self.image_msg.data, dtype=np.uint8)
+                self.image_np = self.image_np.reshape((height, width, channels))
+
+                frame = copy.deepcopy(self.image_np)
+
+                # 타겟 탐지
+                self.target_detected, x_center, y_center = self.get_target_detection_info(frame)
+                detection_info = Float32MultiArray()
+
+                if self.target_detected:
+                    detection_info.data = [x_center, y_center, width, height]
+                    cv2.circle(frame, (int(x_center), int(y_center)), 5, (0, 0, 255), -1)
+                    cv2.putText(frame, "Target Detected", (int(x_center) - 50, int(y_center) - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 2)
+                else:
+                    detection_info.data = []
+
+                # 탐지 정보 퍼블리시
+                self.target_detection_publisher.publish(detection_info)
+
+                # 라이다 거리 및 상태 확인
+                if self.target_detected and self.lidar_distance <= self.target_distance_threshold:
+                    # 타겟 감지 및 거리가 기준 이하면 멈춤
+                    self.robot_state = "STOP"
+                elif self.robot_state == "STOP":
+                    # 멈춘 후 일정 동작 수행
+                    self.robot_action = "BACKWARD"  # 예: 뒤로 이동
+                    rospy.sleep(1)  # 예제: 1초 대기
+                    self.robot_state = "ROTATE"  # 회전 상태로 전환
+                elif self.robot_state == "ROTATE":
+                    # 로봇 회전 동작 수행
+                    self.robot_action = "ROTATE"
+                    rospy.sleep(1)  # 회전 동작 대기
+                    self.robot_state = "IDLE"  # 탐색으로 복귀
+
+                # 로봇 상태 표시
+                cv2.putText(frame, f"State: {self.robot_state}", (10, 50), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 2)
+                cv2.imshow("robot_view", cv2.cvtColor(frame, cv2.COLOR_RGB2BGR))
+
+                # 1ms 대기
+                cv2.waitKey(1)
+
+        except rospy.ROSInterruptException:
+            pass
+
+if __name__ == "__main__":
+    rospy.init_node('camera_feed', anonymous=True)
+    processor = ImageProcessor()
+    try:
+        processor.update_view()
+    except KeyboardInterrupt:
+        print("Shutting down")
+    cv2.destroyAllWindows()

@@ -1,0 +1,9 @@
+<launch>
+    <node pkg="project_ojakdong" type="classify.py" name="classify_node" output="screen">
+        <param name="test_camera" value="true" />
+    </node>
+
+    <node pkg="project_ojakdong" type="filter_node" name="filter_node" output="screen" respawn="true">
+        <param name="wait_for_classify" value="true" />
+    </node>
+</launch>

@@ -1,0 +1,100 @@
+#!/usr/bin/env python3
+
+import cv2
+import tensorflow as tf
+import numpy as np
+import rospy
+import rospkg
+import os
+import json
+from cv_bridge import CvBridge
+from project_ojakdong.msg import DetectionResult
+from sensor_msgs.msg import Image
+
+class ClassifyNode:
+    def __init__(self, inception_model_path, class_indices_path):
+        self.bridge = CvBridge()
+
+        # InceptionV3 모델 로드
+        self.inception_model = tf.keras.models.load_model(inception_model_path)
+
+        # 클래스 인덱스 로드
+        with open(class_indices_path, 'r') as f:
+            self.class_indices = json.load(f)
+        self.class_names = {v: k for k, v in self.class_indices.items()}  # 인덱스를 이름으로 변환
+
+        # ROS 설정
+        rospy.Subscriber("/detection_result", DetectionResult, self.detection_callback)
+        self.image_publisher = rospy.Publisher("/classified_image", Image, queue_size=1)
+        rospy.loginfo("ClassifyNode started, subscribing to /detection_result")
+
+    def detection_callback(self, msg):
+        try:
+            # 메시지에서 이미지 추출
+            frame = self.bridge.imgmsg_to_cv2(msg.image, "bgr8")
+
+            for i, box in enumerate(msg.boxes):
+                # 박스 좌표 가져오기
+                top_left = (int(box.points[0].x), int(box.points[0].y))
+                bottom_right = (int(box.points[2].x), int(box.points[2].y))
+
+                # 박스 영역 잘라내기
+                cropped_img = frame[top_left[1]:bottom_right[1], top_left[0]:bottom_right[0]]
+
+                if cropped_img.size == 0:
+                    rospy.logwarn(f"Skipped empty cropped image for box {i}")
+                    continue
+
+                # InceptionV3 입력 크기 맞추기
+                resized_img = cv2.resize(cropped_img, (299, 299)) / 255.0
+                resized_img = np.expand_dims(resized_img, axis=0)
+
+                # InceptionV3로 분류
+                predictions = self.inception_model.predict(resized_img, verbose=0)
+
+                # 클래스 확률 계산
+                class_probs = {class_name: predictions[0][idx] for class_name, idx in self.class_indices.items()}
+                class_name = max(class_probs, key=class_probs.get)
+                class_prob = class_probs[class_name]
+
+                # 확률 기준으로 Other 처리
+                if class_prob < 0.75:
+                    class_name = "Other"
+
+                # 색상 구분
+                color = (0, 255, 0) if class_name != "Other" else (0, 0, 255)
+
+                # 결과 표시
+                label = f"{class_name} ({class_prob*100:.1f}%)"
+                cv2.rectangle(frame, top_left, bottom_right, color, 2)
+                cv2.putText(frame, label, (top_left[0], top_left[1] - 10),
+                            cv2.FONT_HERSHEY_SIMPLEX, 0.6, color, 2)
+
+            # 분류된 이미지 ROS 메시지로 발행
+            result_msg = self.bridge.cv2_to_imgmsg(frame, "bgr8")
+            self.image_publisher.publish(result_msg)
+
+            # 결과 화면 출력
+            cv2.imshow("Classified Image", frame)
+            if cv2.waitKey(1) & 0xFF == ord('q'):
+                rospy.signal_shutdown("User terminated.")
+
+        except Exception as e:
+            rospy.logerr(f"Error during detection callback: {e}")
+
+def main():
+    rospy.init_node("classify_node")
+
+    rospack = rospkg.RosPack()
+    package_path = rospack.get_path('project_ojakdong')
+    inception_model_path = os.path.join(package_path, 'model/inceptionv3_finetuned.h5')
+    class_indices_path = os.path.join(package_path, 'model/class_indices.json')
+
+    node = ClassifyNode(inception_model_path, class_indices_path)
+    rospy.spin()
+
+    cv2.destroyAllWindows()
+
+
+if __name__ == "__main__":
+    main()

@@ -1,0 +1,4 @@
+<launch>
+    <!-- Python 스크립트를 실행하기 위한 node 설정 -->
+    <node pkg="project_ojakdong" type="finetuning.py" name="finetuning_node" output="screen" />
+</launch>

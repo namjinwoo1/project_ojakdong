@@ -1,0 +1,48 @@
+<?xml version="1.0"?>
+<package format="2">
+  <name>project_ojakdong</name>
+  <version>0.0.1</version>
+  <description>오작동 프로젝트</description>
+  <maintainer email="user@example.com">Your Name</maintainer>
+  <license>MIT</license>
+
+  <!-- ROS 빌드 도구 의존성 -->
+  <buildtool_depend>catkin</buildtool_depend>
+
+  <!-- ROS 런타임 의존성 -->
+  <depend>gazebo_ros</depend>
+  <depend>robot_state_publisher</depend>
+  <depend>roscpp</depend>
+  <depend>std_msgs</depend>
+  <depend>rospy</depend> <!-- Python 노드 지원 -->
+
+  <!-- OpenCV 의존성 -->
+  <build_depend>opencv</build_depend>
+  <exec_depend>opencv</exec_depend>
+
+  <!-- Qt 의존성 -->
+  <build_depend>qt5</build_depend>
+  <exec_depend>qt5</exec_depend>
+
+  <!-- TensorFlow 의존성 -->
+  <build_depend>python3-tensorflow</build_depend>
+  <exec_depend>python3-tensorflow</exec_depend>
+
+  <!-- Python3 의존성 -->
+  <build_depend>python3</build_depend>
+  <exec_depend>python3</exec_depend>
+
+  <build_depend>sensor_msgs</build_depend>
+  <exec_depend>sensor_msgs</exec_depend>
+
+  <build_depend>std_srvs</build_depend>
+  <exec_depend>std_srvs</exec_depend>
+
+  <build_depend>cv_bridge</build_depend>
+  <exec_depend>cv_bridge</exec_depend>
+
+  <build_depend>message_generation</build_depend>
+  <exec_depend>message_runtime</exec_depend>
+  <build_depend>geometry_msgs</build_depend>
+  <exec_depend>geometry_msgs</exec_depend>
+</package>
