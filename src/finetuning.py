@@ -10,6 +10,19 @@ from tensorflow.keras.models import Model
 from tensorflow.keras.layers import Dense, GlobalAveragePooling2D
 from tensorflow.keras.optimizers import Adam
 import json
+from tensorflow.keras.callbacks import Callback
+from std_msgs.msg import String
+
+class TrainingProgressCallback(Callback):
+    def __init__(self, total_epochs, publisher):
+        super(TrainingProgressCallback, self).__init__()
+        self.total_epochs = total_epochs
+        self.publisher = publisher
+
+    def on_epoch_end(self, epoch, logs=None):
+        progress_message = f"Epoch {epoch + 1}/{self.total_epochs} completed."
+        rospy.loginfo(progress_message)
+        self.publisher.publish(progress_message)
 
 
 def train_finetuning(train_dir, val_dir, model_save_path, class_indices_path):
@@ -71,6 +84,12 @@ def train_finetuning(train_dir, val_dir, model_save_path, class_indices_path):
                       loss='categorical_crossentropy', metrics=['accuracy'])
 
         rospy.loginfo("Training started...")
+        
+        # ROS 퍼블리셔 추가
+        progress_pub = rospy.Publisher('/finetuning_progress', String, queue_size=10)
+
+        # 콜백 생성
+        progress_callback = TrainingProgressCallback(total_epochs=20, publisher=progress_pub)
 
         # 모델 훈련
         history = model.fit(
@@ -78,7 +97,8 @@ def train_finetuning(train_dir, val_dir, model_save_path, class_indices_path):
             epochs=20,
             validation_data=val_generator,
             steps_per_epoch=max(train_generator.samples // train_generator.batch_size, 1),
-            validation_steps=max(val_generator.samples // val_generator.batch_size, 1)
+            validation_steps=max(val_generator.samples // val_generator.batch_size, 1),
+            callbacks=[progress_callback]  # 콜백 추가
         )
 
         # 클래스 인덱스 처리

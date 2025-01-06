@@ -1,5 +1,0 @@
-classes=3
-train=/home/lht/catkin_ws/src/project_ojakdong/dataset/train/train.txt
-valid=/home/lht/catkin_ws/src/project_ojakdong/dataset/val/val.txt
-names=/home/lht/catkin_ws/src/project_ojakdong/dataset/obj.names
-backup=/home/lht/catkin_ws/src/project_ojakdong/backup

@@ -21,7 +21,6 @@ public:
         stopCameraService = nh.advertiseService("/stop_camera", &WebInterface::stopCameraCallback, this);
         captureImageService = nh.advertiseService("/capture_image", &WebInterface::captureImageCallback, this);
         labelDataService = nh.advertiseService("/label_data", &WebInterface::labelDataCallback, this);
-        configureDataService = nh.advertiseService("/configure_data", &WebInterface::configureDataCallback, this);
         finetuningService = nh.advertiseService("/start_finetuning", &WebInterface::startFinetuningCallback, this);
         classifyService = nh.advertiseService("/start_classification", &WebInterface::startClassificationCallback, this);
         startRobotControlService = nh.advertiseService("/start_robot_control", &WebInterface::startRobotControlCallback, this);
@@ -181,19 +180,10 @@ private:
         return true;
     }
 
-    bool configureDataCallback(std_srvs::Trigger::Request &req, std_srvs::Trigger::Response &res) {
-        ROS_INFO("Configure data service triggered.");
-        system("roslaunch project_ojakdong makeconfig.launch");
-        res.success = true;
-        res.message = "Training data configuration End.";
-        return true;
-    }
-
     bool startFinetuningCallback(std_srvs::Trigger::Request &req, std_srvs::Trigger::Response &res) {
         ROS_INFO("Start finetuning service triggered.");
         system("roslaunch project_ojakdong finetuning.launch");
         res.success = true;
-        res.message = "Fine-tuning End.";
         return true;
     }
 
@@ -201,7 +191,7 @@ private:
         ROS_INFO("Start classification service triggered.");
         system("roslaunch project_ojakdong classify.launch &");
         res.success = true;
-        res.message = "Classification End.";
+        res.message = "Classification Start.";
         return true;
     }
 
@@ -237,6 +227,7 @@ private:
         }
         return true;
     }
+    
 };
 
 int main(int argc, char** argv) {

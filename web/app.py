@@ -14,6 +14,7 @@ from cv_bridge import CvBridge
 import cv2
 import numpy as np
 import subprocess
+from std_msgs.msg import String
 
 app = Flask(__name__)
 
@@ -47,12 +48,17 @@ rospack = rospkg.RosPack()
 package_path = rospack.get_path('project_ojakdong')
 
 # 글로벌 변수
+finetuning_status = "Idle"
 latest_frame = None
 camera_running = False  # 카메라 상태 추적
 robot_control_process = None
 filter_display_process = None
-classification_running = False  # 분류 상태를 저장하는 전역 변수
 
+def finetuning_status_callback(msg):
+    global finetuning_status
+    finetuning_status = msg.data
+rospy.Subscriber('/finetuning_progress', String, finetuning_status_callback)
+    
 def load_default_filter_config():
     default_config = {
         "brightness": 50,
@@ -163,11 +169,17 @@ def label_data():
 # 파인튜닝 시작
 @app.route('/start_finetuning', methods=['POST'])
 def start_finetuning():
+    rospy.wait_for_service('/start_finetuning')
+    finetuning_srv = rospy.ServiceProxy('/start_finetuning', Trigger)
     try:
         response = finetuning_srv()
         return jsonify({"success": response.success, "message": response.message})
     except rospy.ServiceException as e:
         return jsonify({"success": False, "message": f"Service call failed: {e}"})
+
+@app.route('/finetuning_status', methods=['GET'])
+def get_finetuning_status():
+    return jsonify({"status": finetuning_status})
 
 # 분류 시작
 @app.route('/start_classification', methods=['POST'])
@@ -186,11 +198,6 @@ def start_classification():
         return jsonify({"success": response.success, "message": response.message})
     except rospy.ServiceException as e:
         return jsonify({"success": False, "message": f"Service call failed: {e}"})
-
-@app.route('/check_classification_status', methods=['GET'])
-def check_classification_status():
-    global classification_running
-    return jsonify({"running": classification_running})
 
 # 비디오 피드 스트리밍 엔드포인트
 @app.route('/video_feed')

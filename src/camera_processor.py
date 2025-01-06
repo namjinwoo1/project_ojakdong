@@ -27,7 +27,8 @@ class CameraProcessor:
         self.model.to(self.device)
 
         # ROS 설정
-        self.image_sub = rospy.Subscriber("/usb_cam/image_raw", Image, self.image_callback)
+        self.image_sub = rospy.Subscriber("/usb_cam/image_raw", Image, self.image_callback)     #usb_cam
+        # self.image_sub = rospy.Subscriber("/camera/rgb/image_raw", Image, self.image_callback)  #gazebo
         self.result_pub = rospy.Publisher("/detection_result", DetectionResult, queue_size=10)
         self.image_pub = rospy.Publisher("/processed_image", Image, queue_size=10)
 

@@ -8,9 +8,9 @@ from std_msgs.msg import String
 from project_ojakdong.msg import DetectionResult, ClassifiedResult
 
 # 상수 정의
-SAFE_DISTANCE = 0.5
-FOLLOW_DISTANCE = 1.2
-SEARCH_ROTATION_SPEED = 2.1
+SAFE_DISTANCE = 0.3
+FOLLOW_DISTANCE = 0.3
+SEARCH_ROTATION_SPEED = 1.8
 OBSTACLE_AVOIDANCE_SPEED = 0.8
 OBSTACLE_AVOIDANCE_TURN_SPEED = 2.4
 SEARCH_DURATION = 8
@@ -18,7 +18,7 @@ BACKUP_SPEED = -0.8
 BACKUP_DURATION = 2
 TURN_DURATION = 8
 AVOIDANCE_TIMEOUT = 10
-MAX_ANGULAR_SPEED = 2.1
+MAX_ANGULAR_SPEED = 1.8
 
 class TargetFollower:
     def __init__(self):

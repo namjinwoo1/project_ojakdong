@@ -50,23 +50,48 @@
         button {
             margin: 10px;
             padding: 12px 24px;
-            font-size: 16px;
-            color: white; /* 텍스트 색상 */
-            background-color: #333333; /* 어두운 회색 배경 */
-            border: none; /* 테두리 제거 */
-            border-radius: 5px; /* 모서리를 둥글게 */
-            cursor: pointer; /* 마우스 오버 시 손가락 커서 표시 */
-            transition: background-color 0.3s; /* 부드러운 전환 효과 */
+            font-size: 15px;
+            color: white;
+            background-color: #333333;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: transform 0.2s, background-color 0.3s;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
         }
 
         button:hover {
-            background-color: #1a1a1a; /* 호버 시 더 어두운 회색 */
+            background-color: #1a1a1a;
+            transform: translateY(-3px); /* 떠오르는 효과 */
+        }
+
+        button:active {
+            transform: translateY(1px); /* 클릭 시 눌리는 효과 */
         }
 
         .status {
             margin-top: 20px;
             color: #007BFF;
         }
+
+        #progressBarContainer {
+            width: 100%;
+            background-color: #ddd;
+            border-radius: 8px;
+            margin-top: 20px;
+            display: none;
+        }
+
+        #progressBar {
+            width: 0%;
+            height: 30px;
+            background-color: #4caf50;
+            text-align: center;
+            line-height: 30px;
+            color: white;
+            border-radius: 8px;
+        }
+
     </style>
 </head>
 <body>
@@ -85,13 +110,16 @@
         <button onclick="startCamera()"><i class="fa-solid fa-play"></i>사용자 등록</button>
         <button onclick="stopCamera()"><i class="fa-solid fa-stop"></i>카메라 정지</button>
         <button onclick="captureImage()"><i class="fa-solid fa-camera"></i>이미지 캡처</button>
-        <button onclick="sendRequest('/label_data')"><i class="fa-solid fa-tags"></i>데이터 라벨링</button>
-        <button onclick="sendRequest('/start_finetuning')"><i class="fa-solid fa-rocket"></i>파인튜닝 시작</button>
+        <button onclick="sendRequest('/label_data', false)"><i class="fa-solid fa-tags"></i>데이터라벨링</button>
+        <button onclick="sendRequest('/start_finetuning', true)"><i class="fa-solid fa-rocket"></i>파인튜닝 시작</button>
         <button onclick="startClassification()"><i class="fa-solid fa-filter"></i> 화면 출력</button>
         <button onclick="openFilterSettings()"><i class="fa-solid fa-cog"></i>필터 설정</button>
         <button onclick="startRobotControl()"><i class="fa-solid fa-robot"></i>로봇 이동</button>
         <button onclick="stopRobotControl()"><i class="fa-solid fa-stop"></i>로봇 정지</button>
         <div class="status" id="statusMessage"></div>
+        <div id="progressBarContainer">
+            <div id="progressBar">0%</div>
+        </div>
         <div id="settingsPopup" style="display:none;">
             <h2>필터 설정</h2>
             <label for="brightness">밝기: <span id="brightnessValue">50</span></label><br>
@@ -111,6 +139,7 @@
         let cameraInterval = null;
         let filterInterval = null;
         let isCameraRunning = false;
+        let trainingInProgress = false;
     
         function updateCameraFeed() {
             const cameraFeed = document.getElementById('cameraFeed');
@@ -192,7 +221,7 @@
         
                 // 필터링 피드 업데이트 시작
                 if (!filterInterval && data.success) {
-                    filterInterval = setInterval(updateFilterFeed, 1000 / 30); // 초당 30프레임
+                    filterInterval = setInterval(updateFilterFeed, 1000 / 100); // 초당 10프레임
                 }
             })
             .catch((error) => {
@@ -233,10 +262,23 @@
             }
         }
          
-        async function sendRequest(endpoint) {
+        async function sendRequest(endpoint, showProgressBar) {
             const statusElement = document.getElementById('statusMessage');
+            const progressBarContainer = document.getElementById('progressBarContainer');
+            const progressBar = document.getElementById('progressBar');
             statusElement.textContent = 'Processing...';
-    
+            if (showProgressBar) {
+                progressBarContainer.style.display = 'block';
+                progressBar.style.width = '0%';
+                trainingInProgress = true;
+                statusElement.textContent = '파인튜닝 시작...';
+            } else {
+                statusElement.textContent = '요청 처리 중...';
+            }
+            if (showProgressBar == false) {
+                progressBarContainer.style.display = 'none';
+                trainingInProgress = false;
+            }
             try {
                 const response = await fetch(endpoint, {
                     method: 'POST',
@@ -252,7 +294,8 @@
                 const data = await response.json();
                 statusElement.textContent = data.message;
                 console.log(`Success: ${data.message}`);
-            } catch (error) {
+            } 
+            catch (error) {
                 statusElement.textContent = 'An error occurred.';
                 console.error('Error:', error);
             }
@@ -336,6 +379,33 @@
         function closeSettingsPopup() {
             document.getElementById("settingsPopup").style.display = "none";
         }
+
+        async function fetchFinetuningStatus() {
+            const statusElement = document.getElementById('statusMessage');
+            const progressBar = document.getElementById('progressBar');
+
+            try {
+                const response = await fetch('/finetuning_status');
+                const data = await response.json();
+
+                // 프로그래스 바 업데이트
+                const progress = data.status.match(/Epoch (\d+)\/(\d+)/);
+                if (progress) {
+                    // 상태 업데이트
+                    statusElement.textContent = `훈련 상태: ${data.status}`;
+                    const currentEpoch = parseInt(progress[1]);
+                    const totalEpochs = parseInt(progress[2]);
+                    const percentage = (currentEpoch / totalEpochs) * 100;
+                    progressBar.style.width = `${percentage}%`;
+                    progressBar.textContent = `${Math.round(percentage)}%`;
+                }
+            } catch (error) {
+                console.error('Failed to fetch status:', error);
+            }
+        }
+    
+        // 주기적으로 상태 업데이트 (3초마다)
+        setInterval(fetchFinetuningStatus, 3000);
     </script>    
 </body>
 </html>
