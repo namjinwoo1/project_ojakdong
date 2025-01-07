@@ -34,4 +34,8 @@ Tensorflow 2.12
 
 TensorRT 8.4.3
 
+# 테스트 영상
 
+https://youtube.com/shorts/MEqfHe9M2nk
+
+https://youtube.com/shorts/cA0NUR375go
