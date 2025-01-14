@@ -35,7 +35,12 @@ Tensorflow 2.12
 TensorRT 8.4.3
 
 # 테스트 영상
+사람 탐지, 사용자 등록 및 모델생성
+
+https://youtube.com/shorts/cA0NUR375go
+
+화면 출력 및 사용자 추적
 
 https://youtube.com/shorts/MEqfHe9M2nk
 
-https://youtube.com/shorts/cA0NUR375go
+
